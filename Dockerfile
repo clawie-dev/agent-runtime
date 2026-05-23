@@ -9,8 +9,10 @@
 
 FROM node:24-alpine AS base
 
-# Non-root user (spec 002-FR Security constraint 1)
-RUN addgroup -g 1000 agent && adduser -D -u 1000 -G agent agent
+# Non-root user (spec 002-FR Security constraint 1).
+# The node:24-alpine base ships a non-root `node` user at UID/GID 1000, so
+# we reuse it instead of creating a duplicate `agent` user. The clawie
+# spawner pins `--user 1000:1000` against this UID.
 
 WORKDIR /agent
 
@@ -19,7 +21,7 @@ WORKDIR /agent
 COPY package.json ./
 COPY src ./src
 
-USER agent
+USER node
 
 # Phase 2 contract:
 #   stdin  : one JSON object {intent, payload, task_id}
