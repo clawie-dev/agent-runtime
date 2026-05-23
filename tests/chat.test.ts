@@ -175,6 +175,77 @@ test('invalid payload (no messages) fails with cause=invalid_payload', async () 
   assert.equal(result.cause, 'invalid_payload')
 })
 
+test('OUTCALL_URL routes anthropic through sidecar without auth header', async () => {
+  delete process.env.ANTHROPIC_API_KEY
+  process.env.OUTCALL_URL = 'http://localhost:8080'
+  let captured: { url: string; headers: Record<string, string> } | null = null
+  const fakeFetch = (async (url: string | URL, init: RequestInit) => {
+    const headers: Record<string, string> = {}
+    if (init.headers) {
+      const h = new Headers(init.headers as HeadersInit)
+      h.forEach((v, k) => {
+        headers[k] = v
+      })
+    }
+    captured = { url: typeof url === 'string' ? url : url.toString(), headers }
+    return jsonResponse(200, {
+      content: [{ type: 'text', text: 'ok' }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    })
+  }) as unknown as typeof fetch
+
+  const handler = makeChatHandler(fakeFetch)
+  const result = await handler({
+    taskId: 'sidecar',
+    payload: {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      messages: [{ role: 'user', content: 'hi' }],
+    },
+  })
+  delete process.env.OUTCALL_URL
+
+  assert.equal(result.ok, true)
+  assert.equal(captured!.url, 'http://localhost:8080/anthropic/v1/messages')
+  assert.equal(captured!.headers['x-api-key'], undefined)
+  assert.equal(captured!.headers['anthropic-version'], undefined)
+})
+
+test('OUTCALL_URL routes openai through sidecar without bearer token', async () => {
+  delete process.env.OPENAI_API_KEY
+  process.env.OUTCALL_URL = 'http://localhost:8080/'
+  let captured: { url: string; headers: Record<string, string> } | null = null
+  const fakeFetch = (async (url: string | URL, init: RequestInit) => {
+    const headers: Record<string, string> = {}
+    if (init.headers) {
+      const h = new Headers(init.headers as HeadersInit)
+      h.forEach((v, k) => {
+        headers[k] = v
+      })
+    }
+    captured = { url: typeof url === 'string' ? url : url.toString(), headers }
+    return jsonResponse(200, {
+      choices: [{ message: { content: 'pong' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    })
+  }) as unknown as typeof fetch
+
+  const handler = makeChatHandler(fakeFetch)
+  const result = await handler({
+    taskId: 'sidecar-openai',
+    payload: {
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'ping' }],
+    },
+  })
+  delete process.env.OUTCALL_URL
+
+  assert.equal(result.ok, true)
+  assert.equal(captured!.url, 'http://localhost:8080/openai/v1/chat/completions')
+  assert.equal(captured!.headers['authorization'], undefined)
+})
+
 test('anthropic body strips system message into top-level field', async () => {
   process.env.ANTHROPIC_API_KEY = 'test-key'
   let capturedBody = ''
