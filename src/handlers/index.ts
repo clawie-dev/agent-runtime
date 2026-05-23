@@ -1,5 +1,3 @@
-import { echoHandler } from './echo.ts'
-
 export interface HandlerContext {
   payload: unknown
   taskId: string
@@ -19,10 +17,14 @@ export interface HandlerFailure {
 export type HandlerResult = HandlerSuccess | HandlerFailure
 export type Handler = (ctx: HandlerContext) => Promise<HandlerResult>
 
+import { echoHandler } from './echo.ts'
+import { chatHandler } from './chat.ts'
+
 /**
- * Built-in handlers shipped with the base image. Phase 2 ships only `echo`.
- * Later phases add `chat` (LLM, Phase 3) and skill-loaded handlers (Phase 7).
+ * Built-in handlers shipped with the base image. Phase 3 adds `chat`
+ * (LLM via Anthropic / OpenAI). Skill-loaded handlers land in Phase 7.
  */
 export const handlers: Record<string, Handler> = {
   echo: echoHandler,
+  chat: chatHandler,
 }
