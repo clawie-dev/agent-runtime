@@ -1,0 +1,11 @@
+{
+  "name": "@clawie-dev/agent-runtime",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Base Docker image for Clawie agent containers",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  }
+}

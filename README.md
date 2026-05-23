@@ -1,49 +1,75 @@
 # clawie/agent-runtime
 
-Docker base image that every Clawie agent container runs on top of.
+Docker base image that every Clawie agent container runs on top of. Phase 2 (v0.2.0) ships the minimum: a Node 24 alpine image whose entrypoint reads one JSON task spec from stdin, dispatches to a built-in handler, and writes a structured result envelope to stdout.
 
 Per [spec 002](https://github.com/clawie-dev/specs/tree/main/speckit/002-container-runtime-outcall), every agent task spawns an ephemeral container from this image plus optional per-agent overlay. Designed to be minimal, reproducible, signed, and pinned.
 
-## Goals
+## v0.2.0 surface
 
-- **Small** — < 500 MB compressed (NFR-002).
-- **Non-root by default** — UID > 1000.
-- **No Docker socket access.** No host network. Default-deny capabilities.
-- **Liveness-ping built in** — emits heartbeats to the control plane per spec 020.
-- **Lazy skill loader** — `/skills` mount populated on demand.
-- **Model router client** — talks to the credential broker, never to providers directly.
-- **Reproducible** — pinned base image, locked deps, signed releases.
+| What | How |
+|---|---|
+| Image (local-only for now) | `make build` → `clawie/agent-runtime:dev` |
+| Built-in handlers | `echo` (returns `{message: "hello: <payload>"}`) |
+| Tests | `make test` — Node's built-in `node --test`, no deps |
+| Smoke | `make smoke` — builds + runs an echo through the image |
 
-## Layout (planned)
+## Stdio contract
 
-```
-agent-runtime/
-├── Dockerfile               # base image
-├── overlays/               # per-language overlay variants (node, python, php, etc.)
-├── src/
-│   ├── loop/               # agent loop driver
-│   ├── liveness/           # heartbeat + checkpoint emitter
-│   ├── router/             # model router client
-│   ├── policy/             # local policy enforcement stub
-│   └── skills/             # lazy loader
-├── scripts/                # build, sign, publish
-└── tests/
+The container reads **one JSON object from stdin** (terminated by EOF) and writes **one JSON envelope to stdout**.
+
+Stdin spec:
+
+```json
+{ "intent": "echo", "payload": "world", "task_id": "<uuid>" }
 ```
 
-## Release versions
+Stdout envelope:
 
-Images published as:
-
-```
-clawie/agent-runtime:v0.1.0
-clawie/agent-runtime:v0.1.0-node22
-clawie/agent-runtime:v0.1.0-python3.12
-clawie/agent-runtime:v0.1.0-php8.3
+```json
+{ "ok": true,  "output": <any> }
+{ "ok": false, "cause": "<code>", "detail": "<text>" }
 ```
 
-## Status
+Exit code mirrors `ok`: `0` for success, non-zero for failure.
 
-Bootstrap pending. Tracked in [`clawie-dev/specs/speckit/002-container-runtime-outcall`](https://github.com/clawie-dev/specs/tree/main/speckit/002-container-runtime-outcall).
+### Failure causes (Phase 2)
+
+| Cause | When |
+|---|---|
+| `empty_stdin` | No input received |
+| `invalid_json` | Stdin is not valid JSON |
+| `missing_intent` | Spec is JSON but `.intent` is missing or non-string |
+| `unknown_intent` | Intent name not in the built-in handler registry |
+| `intentional_failure` | The `echo` test fixture (`{__fail: true}`) |
+| `handler_threw` | A handler threw an unhandled error |
+| `unhandled` | Last-resort guard (should never fire) |
+
+## Try it locally
+
+```bash
+make build
+echo '{"intent":"echo","payload":"world","task_id":"t1"}' | \
+  docker run --rm -i clawie/agent-runtime:dev
+# → {"ok":true,"output":{"message":"hello: world"}}
+```
+
+## Roadmap
+
+| Phase | Adds |
+|---|---|
+| v0.2.0 (now) | base image + `echo` handler |
+| v0.3.0 | `chat` handler with model router client (no creds — broker is Phase 5) |
+| v0.5.0 | publish to GHCR; integrate with Outcall sidecar |
+| v0.7.0 | skill-loaded handlers via `/skills` mount |
+| later | per-language overlays (Python, PHP, Ruby) |
+
+## Goals + constraints
+
+- **<100 MB compressed** — node:24-alpine ≈ 50 MB; entrypoint adds <1 MB.
+- **Non-root** — UID 1000 (`agent` user).
+- **No Docker socket access** — never granted by the spawner.
+- **No network by default** — Clawie's spawner configures network; image makes no calls on its own.
+- **Reproducible** — pinned base, no transitive deps in Phase 2.
 
 ## License
 

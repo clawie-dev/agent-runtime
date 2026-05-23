@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Entrypoint tests (no Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run entrypoint tests
+        run: node --experimental-strip-types --test tests/*.test.ts
+
+  build:
+    name: Docker build + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image (local-only — no push in Phase 2)
+        run: docker build -t clawie/agent-runtime:dev .
+      - name: Smoke test (echo via image)
+        run: |
+          result=$(echo '{"intent":"echo","payload":"smoke","task_id":"ci-1"}' | docker run --rm -i clawie/agent-runtime:dev)
+          echo "stdout: $result"
+          echo "$result" | grep -q '"ok":true' || (echo "smoke failed"; exit 1)
+          echo "$result" | grep -q 'hello: smoke' || (echo "smoke output unexpected"; exit 1)
+          echo "smoke ok"
