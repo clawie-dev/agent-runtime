@@ -47,20 +47,12 @@ export function makeChatHandler(fetchImpl: FetchFn = globalThis.fetch): Handler 
     const parsed = parsePayload(payload)
     if (!parsed.ok) return parsed.failure
 
-    // Phase 5: when OUTCALL_URL is set, route through the sidecar.
-    // The sidecar injects credentials; we send no auth header at all
-    // and use mount paths instead of provider hostnames.
-    //
-    // When OUTCALL_URL is unset (Phase 3 legacy path), we read API
-    // keys from env and call providers directly. This branch will be
-    // removed once Outcall is required everywhere.
-    const outcallUrl = readOutcallUrl()
-    const credential = outcallUrl ? null : readCredential(parsed.value.provider)
-    if (!outcallUrl && !credential) {
+    const credential = readCredential(parsed.value.provider)
+    if (!credential) {
       return {
         ok: false,
         cause: 'missing_credential',
-        detail: `no API key in env for provider "${parsed.value.provider}" (and OUTCALL_URL unset)`,
+        detail: `no API key in env for provider "${parsed.value.provider}"`,
       }
     }
 
@@ -68,8 +60,8 @@ export function makeChatHandler(fetchImpl: FetchFn = globalThis.fetch): Handler 
     try {
       response =
         parsed.value.provider === 'anthropic'
-          ? await callAnthropic(fetchImpl, credential, parsed.value, outcallUrl)
-          : await callOpenAI(fetchImpl, credential, parsed.value, outcallUrl)
+          ? await callAnthropic(fetchImpl, credential, parsed.value)
+          : await callOpenAI(fetchImpl, credential, parsed.value)
     } catch (err) {
       return {
         ok: false,
@@ -158,16 +150,10 @@ function readCredential(provider: 'anthropic' | 'openai'): string | null {
   return value && value.length > 0 ? value : null
 }
 
-function readOutcallUrl(): string | null {
-  const v = process.env.OUTCALL_URL
-  return v && v.length > 0 ? v.replace(/\/$/, '') : null
-}
-
 async function callAnthropic(
   fetchImpl: FetchFn,
-  apiKey: string | null,
-  payload: ChatPayload,
-  outcallUrl: string | null
+  apiKey: string,
+  payload: ChatPayload
 ): Promise<NormalizedResponse> {
   const system = payload.messages.find((m) => m.role === 'system')?.content
   const conversation = payload.messages.filter((m) => m.role !== 'system')
@@ -178,19 +164,13 @@ async function callAnthropic(
   }
   if (system) body.system = system
 
-  const url = outcallUrl
-    ? `${outcallUrl}/anthropic/v1/messages`
-    : 'https://api.anthropic.com/v1/messages'
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
-  if (!outcallUrl) {
-    // Direct mode (Phase 3 legacy). Sidecar mode lets Outcall inject these.
-    headers['x-api-key'] = apiKey ?? ''
-    headers['anthropic-version'] = '2023-06-01'
-  }
-
-  const res = await fetchImpl(url, {
+  const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers,
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
     body: JSON.stringify(body),
   })
 
@@ -215,9 +195,8 @@ async function callAnthropic(
 
 async function callOpenAI(
   fetchImpl: FetchFn,
-  apiKey: string | null,
-  payload: ChatPayload,
-  outcallUrl: string | null
+  apiKey: string,
+  payload: ChatPayload
 ): Promise<NormalizedResponse> {
   const body: Record<string, unknown> = {
     model: payload.model,
@@ -225,17 +204,12 @@ async function callOpenAI(
   }
   if (payload.max_tokens !== undefined) body.max_tokens = payload.max_tokens
 
-  const url = outcallUrl
-    ? `${outcallUrl}/openai/v1/chat/completions`
-    : 'https://api.openai.com/v1/chat/completions'
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
-  if (!outcallUrl) {
-    headers['authorization'] = `Bearer ${apiKey ?? ''}`
-  }
-
-  const res = await fetchImpl(url, {
+  const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers,
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify(body),
   })
 
