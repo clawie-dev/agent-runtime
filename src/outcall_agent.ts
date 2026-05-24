@@ -16,7 +16,7 @@
  * When the socket isn't mounted (CLAWIE_EGRESS=null) the check transparently
  * resolves to `{allowed: true}` so handlers can call it unconditionally.
  *
- * Spec mirror: `Outcall-dev/outcall/application/outcall-api/src/lib.rs`
+ * Spec mirror: `outcall-dev/outcall/application/outcall-api/src/lib.rs`
  * (PermissionRequest, Verdict, ActionType).
  */
 
