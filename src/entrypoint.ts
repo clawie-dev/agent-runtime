@@ -10,8 +10,9 @@
  *
  * Exit code 0 ↔ ok=true. Non-zero ↔ ok=false (or unhandled crash).
  *
- * Phase 2 ships only the `echo` handler. Later phases extend the handler
- * registry via skills (spec 010).
+ * Built-in handlers: `echo` (added in Phase 2) and `chat` (added in
+ * Phase 3 — Anthropic / OpenAI, credentials via env). Skill-loaded
+ * handlers land in a later phase (spec 010).
  */
 
 import { handlers, type Handler } from './handlers/index.ts'
