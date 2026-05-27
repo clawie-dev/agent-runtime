@@ -29,5 +29,6 @@ USER node
 #   exit 0 : ok=true
 #   exit 1 : ok=false (or unhandled error)
 #
-# Wall-clock timeout is enforced by the spawner via `docker run --stop-timeout`.
+# Wall-clock timeout is enforced by the Clawie spawner, which SIGKILLs the
+# spawned `docker run` process once the per-task timeout elapses.
 ENTRYPOINT ["node", "--experimental-strip-types", "src/entrypoint.ts"]
