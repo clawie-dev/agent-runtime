@@ -46,6 +46,7 @@ Exit code mirrors `ok`: `0` for success, non-zero for failure.
 
 | Cause | When |
 |---|---|
+| `stdin_read_failed` | Reading the task spec from stdin errored |
 | `empty_stdin` | No input received |
 | `invalid_json` | Stdin is not valid JSON |
 | `missing_intent` | Spec is JSON but `.intent` is missing or non-string |
