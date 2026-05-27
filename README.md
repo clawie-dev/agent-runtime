@@ -99,7 +99,7 @@ Output:
 ## Goals + constraints
 
 - **<100 MB compressed** — `node:24-alpine` ≈ 50 MB; entrypoint adds <1 MB.
-- **Non-root** — UID 1000 (`agent` user).
+- **Non-root** — UID 1000 (the base image's `node` user; the spawner pins `--user 1000:1000`).
 - **No Docker socket access** — never granted by the spawner.
 - **No network by default** — Clawie's spawner configures network per-intent;
   the image itself makes no calls.
