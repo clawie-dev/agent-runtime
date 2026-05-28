@@ -9,8 +9,8 @@ every agent task spawns an ephemeral container from this image plus optional
 per-agent overlay. Designed to be minimal, reproducible, signed, and pinned.
 
 **Current tag:** `v0.5.0` — base image + `echo` + `chat` (Anthropic / OpenAI),
-direct egress with credentials injected by env. (The earlier sidecar fork from
-v0.5.0 was walked back in v0.5.1; egress isolation now lives in the Clawie
+direct egress with credentials injected by env. (An earlier sidecar fork was
+abandoned before this tag; egress isolation now lives in the Clawie
 control-plane via the `EgressProvider` interface.)
 
 ## Surface
