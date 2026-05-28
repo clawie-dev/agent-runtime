@@ -2,8 +2,9 @@
 #
 # Minimal Node 24 runtime. The entrypoint reads a task spec from stdin (one
 # JSON object terminated by EOF) and writes a result envelope to stdout
-# (one JSON object). No LLM client. No Outcall. No network access by default
-# at the Docker level — Clawie's spawner is responsible for network config.
+# (one JSON object). The chat handler calls Anthropic/OpenAI via native
+# fetch — no SDK dependencies. No Outcall. No network access by default at
+# the Docker level — Clawie's spawner is responsible for network config.
 #
 # Image size goal: < 100 MB compressed.
 
