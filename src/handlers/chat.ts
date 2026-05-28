@@ -4,8 +4,10 @@ import { priceFor, costUsdCents } from '../pricing.ts'
 /**
  * Phase 3 `chat` handler. Calls the provider API directly from inside
  * the container; the clawie spawner is responsible for granting network
- * access and injecting credentials via env. Phase 5 (Outcall) will
- * replace the direct egress with a sidecar.
+ * access and injecting credentials via env. Phase 5 layers Outcall on
+ * top via Clawie's EgressProvider (managed network + HTTP_PROXY env);
+ * the handler itself stays unchanged — an earlier sidecar variant was
+ * abandoned before v0.5.0.
  *
  * Payload shape:
  *   { provider: "anthropic" | "openai", model: string,
